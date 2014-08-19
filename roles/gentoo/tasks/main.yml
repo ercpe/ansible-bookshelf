@@ -1,0 +1,53 @@
+-   name: Create locales
+    locale_gen: name={{item}} state=present
+    with_items: locales
+
+-   name: Set default locale
+    command: eselect locale set {{default_locale}}
+
+-   name: env-update
+    shell: env-update && source /etc/profile
+
+-   name: Test timezone
+    stat: path=/etc/timezone
+    register: timezone_test
+
+-   name: Set timezone
+    shell: echo {{timezone}} > /etc/timezone
+    register: timezone_set
+    when: not timezone_test.stat.exists
+
+-   name: Reconfig sys-libs/timezone-data
+    command: emerge --config sys-libs/timezone-data
+    when: timezone_set|changed
+
+-   name: Test for gentoolkit
+    shell: which equery &> /dev/null
+    changed_when: False
+    register: gentoolkit_test
+    failed_when: False
+
+-   name: Install gentoolkit
+    shell: which equery &> /dev/null || emerge app-portage/gentoolkit
+    when: gentoolkit_test.rc > 0
+
+-   name: Set base USE flags
+    shell: grep "^dev-vcs/git" /etc/portage/package.use  &> /dev/null || echo "dev-vcs/git -gpg -perl" >> /etc/portage/package.use
+
+-   name: Install layman
+    portage: package=layman state=present
+
+-   name: Update layman overlay list
+    shell: layman -S
+
+-   name: Install overlays
+    layman: name={{item}} state=updated
+    with_items: portage_overlays
+
+-   name: Install base packages
+    portage: package={{item}} state=present
+    with_items: base_packages
+
+-   name: Install services
+    service: name={{item}} state=started enabled=yes
+    with_items: boot_services
