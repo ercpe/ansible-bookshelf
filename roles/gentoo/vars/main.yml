@@ -18,3 +18,10 @@ boot_services:
     - sshd
     - vixie-cron
     - syslog-ng
+
+DISTDIR: "/var/cache/distfiles"
+CFLAGS: "-O2 -pipe"
+DEFAULT_USE: mmx sse sse2 -X -gtk -gnome -qt -qt3 -qt4 -cups -alsa
+MAKEOPTS: -j4 -l6
+EMERGE_DEFAULT_OPTS: "--jobs=4 --load-average=6 --keep-going"
+ACCEPT_LICENSE: "*"

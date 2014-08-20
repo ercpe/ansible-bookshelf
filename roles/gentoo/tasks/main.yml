@@ -21,6 +21,20 @@
     command: emerge --config sys-libs/timezone-data
     when: timezone_set|changed
 
+-   name: Test make.conf setup
+    shell: grep "^ACCEPT_LICENSE" /etc/portage/make.conf &> /dev/null
+    register: make_conf_test
+    failed_when: False
+    changed_when: False
+
+-   name: Extract CHOST
+    shell: grep "^CHOST=" /etc/portage/make.conf | cut -c 7- | sed -e 's:"::g'
+    register: DEFAULT_CHOST
+
+-   name: Setup make.conf
+    template: src=make.conf dest=/etc/portage/make.conf
+    when: make_conf_test.rc > 0
+
 -   name: Test for gentoolkit
     shell: which equery &> /dev/null
     changed_when: False
