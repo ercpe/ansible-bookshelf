@@ -1,0 +1,67 @@
+-   hosts:
+        localhost
+
+    vars:
+        domU_config_path: /etc/xen
+        lvm_volume_group: blackbox
+#        lvm_lv_prefix: vm-
+        lvm_lv_prefix:
+        rootfs: ext4
+        gentoo_mirror: http://gentoo.j-schmitz.net/mirror/
+        arch: amd64
+        subarch: amd64
+
+    vars_prompt:
+        domU_name: "Name of the new domU"
+
+    tasks:
+    -   name: Test domU config
+        stat: path={{domU_config_path}}/{{domU_name}}.cfg
+        register: domU_config_file
+        failed_when: domU_config_file.stat.exists
+
+    -   name: Create LVM root volume
+        lvol: vg={{lvm_volume_group}} lv={{lvm_lv_prefix}}{{domU_name}}-hdd0 size=20G
+
+    -   name: Create root filesystem
+        filesystem: fstype={{rootfs}} dev=/dev/{{lvm_volume_group}}/{{lvm_lv_prefix}}{{domU_name}}-hdd0
+
+    -   name: Create LVM swap volume
+        lvol: vg={{lvm_volume_group}} lv={{lvm_lv_prefix}}{{domU_name}}-swap size=512M
+
+    -   name: Create swap filesystem
+        command: mkswap /dev/{{lvm_volume_group}}/{{lvm_lv_prefix}}{{domU_name}}-swap
+
+    -   name: Create temp dir
+        command: mktemp -d
+        register: temp_dir
+
+    -   name: Mount root fs
+        command: mount /dev/{{lvm_volume_group}}/{{lvm_lv_prefix}}{{domU_name}}-hdd0 {{temp_dir.stdout}}
+        register: root_mount
+
+    -   name: Download latest file
+        get_url: url={{gentoo_mirror}}/releases/{{arch}}/autobuilds/latest-stage3-{{subarch}}.txt dest={{temp_dir.stdout}}/latest.txt
+
+    -   name: Extract latest stage3 filename
+        shell: grep "^[^#]" {{temp_dir.stdout}}/latest.txt
+        register: stage3
+
+    -   name: Clean up
+        command: rm {{temp_dir.stdout}}/latest.txt
+
+    -   name: Download stage3
+        get_url: url={{gentoo_mirror}}/releases/{{arch}}/autobuilds/{{stage3.stdout}} dest={{temp_dir.stdout}}/stage3.tar.bz2
+
+    -   name: Extract stage3
+        command: tar xjpf {{temp_dir.stdout}}/stage3.tar.bz2 -C {{temp_dir.stdout}}/
+
+    -   name: Clean up
+        command: rm {{temp_dir.stdout}}/stage3.tar.bz2
+
+    -   name: Umount root fs
+        command: umount {{temp_dir.stdout}}
+        when: root_mount|failed or root_mount|success
+
+    -   name: Remove temp directory
+        command: rm -r {{temp_dir.stdout}}
