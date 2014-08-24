@@ -1,3 +1,5 @@
-- hosts: test
-  roles:
-    - gentoo
+-   hosts: test
+    vars_prompt:
+        hostname: "Hostname"
+    roles:
+        - gentoo

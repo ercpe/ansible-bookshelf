@@ -21,6 +21,9 @@
     command: emerge --config sys-libs/timezone-data
     when: timezone_set|changed
 
+-   name: Set hostname
+    hostname: name={{hostname}}
+
 -   name: Test make.conf setup
     shell: grep "^ACCEPT_LICENSE" /etc/portage/make.conf &> /dev/null
     register: make_conf_test
