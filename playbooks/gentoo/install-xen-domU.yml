@@ -1,8 +1,7 @@
 -   hosts:
-        localhost
+        "{{vm_host}}"
 
     vars:
-        domU_config_path: /etc/xen
         lvm_volume_group: blackbox
 #        lvm_lv_prefix: vm-
         lvm_lv_prefix:
@@ -10,15 +9,37 @@
         gentoo_mirror: http://gentoo.j-schmitz.net/mirror/
         arch: amd64
         subarch: amd64
+        xen_config_dir: /etc/xen
+        bridge: br0
+        VM_KERNEL: /boot/vm-kernel
+
+        ip_address: 10.10.10.150/24
+        router: 10.10.10.2
+        nameservers:
+        -   10.10.10.3
+
 
     vars_prompt:
+        vm_host: "VM host"
         domU_name: "Name of the new domU"
 
     tasks:
     -   name: Test domU config
-        stat: path={{domU_config_path}}/{{domU_name}}.cfg
+        stat: path={{xen_config_dir}}/{{domU_name}}.cfg
         register: domU_config_file
-        failed_when: domU_config_file.stat.exists
+        changed_when: False
+
+    -   name: Test domU LVM volume
+        stat: path=/dev/{{lvm_volume_group}}/{{lvm_lv_prefix}}{{domU_name}}-hdd0
+        register: domU_lvm_volume
+
+    -   name: domU {{domU_name}} already exists
+        fail: msg="domU {{domU_name}} already exists"
+        when: domU_config_file.stat.exists or domU_lvm_volume.stat.exists
+
+    -   name: Generate root password
+        shell: tr -dc _A-Z-a-z-0-9 < /dev/urandom | head -c${1:-32}
+        register: root_passwd
 
     -   name: Create LVM root volume
         lvol: vg={{lvm_volume_group}} lv={{lvm_lv_prefix}}{{domU_name}}-hdd0 size=20G
@@ -43,7 +64,7 @@
     -   name: Download latest file
         get_url: url={{gentoo_mirror}}/releases/{{arch}}/autobuilds/latest-stage3-{{subarch}}.txt dest={{temp_dir.stdout}}/latest.txt
 
-    -   name: Extract latest stage3 filename
+    -   name: Get latest stage3 filename
         shell: grep "^[^#]" {{temp_dir.stdout}}/latest.txt
         register: stage3
 
@@ -59,9 +80,45 @@
     -   name: Clean up
         command: rm {{temp_dir.stdout}}/stage3.tar.bz2
 
+    -   name: Setup network
+        command: chroot {{temp_dir.stdout}} ln -s /etc/init.d/net.lo /etc/init.d/net.eth0
+
+    -   name: Configure network
+        template: src=templates/conf.d_net dest={{temp_dir.stdout}}/etc/conf.d/net
+        when: ip_address is defined
+
+    -   name: Configure DNS
+        template: src=templates/resolv.conf dest={{temp_dir.stdout}}/etc/resolv.conf
+        when: ip_address is defined
+
+    -   name: Autostart network
+        command: chroot {{temp_dir.stdout}} rc-update add net.eth0 boot
+
+    -   name: Autostart sshd
+        command: chroot {{temp_dir.stdout}} rc-update add sshd default
+
+    -   name: Set root password
+        shell: echo -e "{{root_passwd.stdout}}\n{{root_passwd.stdout}}" | passwd --root {{temp_dir.stdout}} root
+
+    -   name: Enable hvc0
+        shell: sed -i '/c1:.*/ih0:12345:respawn:\/sbin\/agetty --noclear 38400 hvc0 screen' {{temp_dir.stdout}}/etc/inittab
+
+    -   name: Disable default tty's
+        shell: sed -i '/c[0-9]:.*/ s/^/#/' {{temp_dir.stdout}}/etc/inittab
+
     -   name: Umount root fs
         command: umount {{temp_dir.stdout}}
-        when: root_mount|failed or root_mount|success
 
     -   name: Remove temp directory
         command: rm -r {{temp_dir.stdout}}
+
+    -   name: Generate MAC address
+        shell: printf '00:16:3E:%02X:%02X:%02X' $[RANDOM%256] $[RANDOM%256] $[RANDOM%256]
+        register: mac_address
+        changed_when: False
+
+    -   name: Write Xen domU config
+        template: src=templates/xen_domU.conf dest={{xen_config_dir}}/{{domU_name}}.conf
+
+    -   name: Print root password
+        debug: msg="The root password of {{domU_name}} is {{root_passwd.stdout}}"

@@ -1,0 +1,2 @@
+config_eth0="{{ip_address}}"
+routes_eth0="default via {{router}}"
