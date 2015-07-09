@@ -1,0 +1,61 @@
+- hosts: localhost
+  sudo: yes
+
+  vars:
+  - mirror: http://localhost:8000/
+  #https://mirror.not-your-server.de/mirror/
+  - locales:
+    - de_DE.UTF-8 UTF-8
+    - en_GB.UTF-8 UTF-8
+    - en_US.UTF-8 UTF-8
+  - default_locale: en_US.utf8
+
+  - distdir: /var/cache/distfiles
+
+  - package_use:
+    - "app-portage/layman git -cvs -subversion"
+    - "dev-vcs/git -perl -gpg"
+
+  - remerge_packages:
+    - net-misc/openssh
+    - dev-libs/openssl
+
+  - install_packages:
+    - app-admin/syslog-ng
+    - app-portage/gentoolkit
+    - sys-process/htop
+    - sys-process/vixie-cron
+    - '>=sys-apps/portage-2.2.18'
+    - app-admin/logrotate
+    - app-admin/lib_users
+    - app-misc/colordiff
+    - app-misc/screen
+    - app-portage/genlop
+    - app-portage/eix
+    - mail-mta/postfix
+    - mail-client/mailx
+    - net-dns/bind-tools
+    - net-firewall/iptables
+    - net-firewall/conntrack-tools
+    - net-misc/ntp
+    - net-misc/netkit-telnetd
+    - sys-apps/mlocate
+    - sys-apps/iproute2
+    - sys-process/lsof
+    - app-admin/pwgen
+    - sys-apps/ethtool
+    - net-analyzer/netcat
+    - app-portage/squashed-portage
+    - app-admin/sudo
+    - virtual/cron
+    - virtual/logger
+    - dev-perl/XML-Simple # missing dependency in munin
+    - dev-perl/Cache-Cache # missing dependency in munin
+
+  #- overlay_urls:
+
+  - overlays:
+    - last-hope
+
+  roles:
+  - stage4

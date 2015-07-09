@@ -1,0 +1,42 @@
+- name: Enable locales
+  lineinfile: dest=/etc/locale.gen line="{{item}}"
+  with_items: locales
+- command: locale-gen
+- command: eselect locale set {{default_locale}}
+
+- shell: grep "^CHOST=" /etc/portage/make.conf
+  changed_when: False
+  register: default_chost
+- set_fact: chost="{{default_chost.stdout}}"
+
+- name: write make.conf
+  template: src=make.conf dest=/etc/portage/make.conf
+
+- name: Set use flags
+  lineinfile: dest=/etc/portage/package.use/setup line="{{item}}" create=yes
+  with_items: package_use
+
+# we don't have equery (from gentoolkit) yet
+- name: Install layman
+  command: emerge app-portage/layman
+
+- name: Sync overlays
+  command: layman -S
+
+- name: enable overlays
+  fail: msg="FIXME"
+  when: overlay_urls is defined
+
+- name: Add overlays
+  command: layman -a {{item}}
+  with_items: overlays
+  when: overlays is defined
+
+- name: Add layman's source statement to make.conf
+  lineinfile: dest=/etc/portage/make.conf line="source /var/lib/layman/make.conf"
+
+- name: Re-emerge changeduse
+  command: emerge {{remerge_packages|join(" ")}} --newuse --changed-use --update
+
+- name: Install base packages
+  command: emerge {{install_packages|join(" ")}}

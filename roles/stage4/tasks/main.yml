@@ -1,0 +1,52 @@
+- command: mktemp -d -p /mnt/temp
+  register: mktemp
+
+- set_fact: temp_dir={{mktemp.stdout}}
+
+- debug: msg="working in {{temp_dir}}"
+
+# get latest-stage3.txt
+- get_url: url={{mirror}}/releases/amd64/autobuilds/latest-stage3-amd64.txt dest={{temp_dir}}/stage3.txt mode=0440
+
+# extract filename of the stage3 tarball
+- shell: grep "^[^#]" {{temp_dir}}/stage3.txt | sed -e 's/ .*//g'
+  changed_when: False
+  register: stage3_filename
+
+# fetch the tarball
+- get_url: url={{mirror}}/releases/amd64/autobuilds/{{stage3_filename.stdout}} dest={{temp_dir}}/stage3.tar.bz2
+
+# extract tarball to temp directory
+- command: tar xjpf {{temp_dir}}/stage3.tar.bz2 -C {{temp_dir}}/ --numeric-owner
+
+# remove tarball and 'latest' file
+- file: dest={{temp_dir}}/{{item}} state=absent
+  with_items:
+  - stage3.txt
+  - stage3.tar.bz2
+
+# create /usr/portage in the temp directory
+- file: dest={{temp_dir}}{{item}} state=directory
+  with_items:
+  - /usr/portage
+  - "{{distdir}}"
+
+- command: mount -o bind /usr/portage {{temp_dir}}/usr/portage
+- command: mount -o bind /dev {{temp_dir}}/dev
+- command: mount -t proc none {{temp_dir}}/proc
+
+- command: cp /etc/resolv.conf {{temp_dir}}/etc/resolv.conf
+
+
+- include: chroot.yml ansible_connection=chroot ansible_ssh_host="{{temp_dir}}"
+
+
+- file: dest={{temp_dir}}/etc/resolv.conf state=absent
+
+- command: umount {{temp_dir}}{{item}}
+  with_items:
+  - /usr/portage
+  - /dev
+  - /proc
+
+#- file: dest={{temp_dir}} state=absent
