@@ -26,12 +26,6 @@
   lineinfile: dest=/etc/portage/package.accept_keywords line="{{item}}" create=yes
   with_items: package_accept_keywords
 
-- name: Setup SSH key for portage
-  file: dest=/var/tmp/portage/.ssh mode=0755 owner=portage group=portage state=directory
-
-- name: Install SSH key for portage
-  copy: src=portage_id_rsa dest=/var/tmp/portage/.ssh/id_rsa mode=0600 owner=portage group=portage
-
 
 # we don't have equery (from gentoolkit) yet
 - name: Install layman
