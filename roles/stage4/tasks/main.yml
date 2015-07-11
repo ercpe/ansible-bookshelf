@@ -3,10 +3,12 @@
 
 - set_fact: temp_dir={{mktemp.stdout}}
 
+- set_fact: primary_mirror={{mirrors[0]}}
+
 - debug: msg="working in {{temp_dir}}"
 
 # get latest-stage3.txt
-- get_url: url={{mirror}}/releases/amd64/autobuilds/latest-stage3-amd64.txt dest={{temp_dir}}/stage3.txt mode=0440
+- get_url: url={{primary_mirror}}/releases/amd64/autobuilds/latest-stage3-amd64.txt dest={{temp_dir}}/stage3.txt mode=0440
 
 # extract filename of the stage3 tarball
 - shell: grep "^[^#]" {{temp_dir}}/stage3.txt | sed -e 's/ .*//g'
@@ -14,7 +16,7 @@
   register: stage3_filename
 
 # fetch the tarball
-- get_url: url={{mirror}}/releases/amd64/autobuilds/{{stage3_filename.stdout}} dest={{temp_dir}}/stage3.tar.bz2
+- get_url: url={{primary_mirror}}/releases/amd64/autobuilds/{{stage3_filename.stdout}} dest={{temp_dir}}/stage3.tar.bz2
 
 # extract tarball to temp directory
 - command: tar xjpf {{temp_dir}}/stage3.tar.bz2 -C {{temp_dir}}/ --numeric-owner
