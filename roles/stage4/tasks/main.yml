@@ -30,6 +30,7 @@
   with_items:
   - /usr/portage
   - "{{distdir}}"
+  - "{{pkgdir}}"
 
 - command: mount -o bind /usr/portage {{temp_dir}}/usr/portage
 - command: mount -o bind /dev {{temp_dir}}/dev
@@ -43,10 +44,15 @@
 
 - file: dest={{temp_dir}}/etc/resolv.conf state=absent
 
+
 - command: umount {{temp_dir}}{{item}}
   with_items:
   - /usr/portage
   - /dev
   - /proc
 
+- name: Build stage4 tarball
+  command: tar cjpf /tmp/stage4.tar.bz2 . --numeric-owner chdir="{{temp_dir}}"
+
 #- file: dest={{temp_dir}} state=absent
+

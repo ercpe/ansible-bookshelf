@@ -11,10 +11,14 @@
   - default_locale: en_US.utf8
 
   - distdir: /var/cache/distfiles
+  - pkgdir: /var/cache/packages
 
   - package_use:
     - "app-portage/layman git -cvs -subversion"
     - "dev-vcs/git -perl -gpg"
+
+  - package_accept_keywords:
+    - "app-portage/squashed-portage ~{{ansible_userspace_architecture|replace('x86_64', 'amd64')}}"
 
   - remerge_packages:
     - net-misc/openssh
